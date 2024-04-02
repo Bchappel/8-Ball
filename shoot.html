@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang = "en">
+<head>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <title>8 Ball</title>
+    <meta charset = "UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #eaeaea;
+        }
+        #drawCanvas {
+            position: absolute;
+            display: flex;
+            justify-content: center;
+        }
+        #svg-background {
+            position: absolute;
+            z-index: 2; /* Ensure the background SVG is below the container SVG */
+            pointer-events: none;
+        }
+        #svg-container {
+            position: relative; /* Change position to relative */
+            z-index: 1; /* Ensure the container SVG is above the background SVG and canvas */
+            max-height: 1375px;
+            width: 700px;
+        }
+        svg {
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        canvas {
+            /*border: 10px solid rgb(0, 0, 0);*/
+            position: relative;
+        }
+        #gameName{
+            position: absolute;
+            top: 25px; /* Adjust top position for desired distance from the top */
+            left: 50%; /* Set left to 50% to center horizontally */
+            transform: translateX(-50%); /* Move the text horizontally by half of its width to center it */
+            margin: 0;
+            font-size: 100px;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        #player1{
+            position: absolute;
+            top: 25px; /* Adjust top position for desired distance from the top */
+            left: 4%; /* Set left to 50% to center horizontally */
+            margin: 0;
+            font-size: 100px;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        #player2{
+            position: absolute;
+            top: 25px; /* Adjust top position for desired distance from the top */
+            right: 4%; /* Set left to 50% to center horizontally */
+            margin: 0;
+            font-size: 100px;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        #gameNameBox {
+            position: absolute;
+            top: 150px; /* Adjust top position for desired distance from the top */
+            left: 50%; /* Set left to 50% to center horizontally */
+            transform: translateX(-50%);
+            height: 50px;
+            width: 300px;
+            font-size: 35pt;
+        }
+        #Player1Name {
+            position: absolute;
+            top: 150px;
+            height: 50px;
+            width: 250px;
+            right: 4%;
+            font-size: 35pt;
+            color: black;
+        }
+        #Player2Name {
+            position: absolute;
+            top: 150px;
+            height: 50px;
+            width: 250px;
+            left: 4%;
+            font-size: 35pt;
+            color: black;
+        }
+        #submit {
+            position: absolute;
+            bottom: 100px;
+            transform: translateX(-50%);
+            left: 50%;
+            height: 100px;
+            width: 200px;
+            font-size: 40pt;
+        }
+        .hidden {
+            display: none;
+            z-index: -1; /* Pushes the element behind */
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id = svg-background>        
+        <svg width="1500" height="2000"></svg>
+    </div>  
+
+    <canvas id="drawCanvas" width="1500" height="2000"></canvas>
+
+    <div id="svgContainer"></div>
+
+    <p id="gameName">Enter game and player names</p>
+    <p id="player1">Player 1</p>
+    <p id="player2">Player 2</p>
+    
+    <form id="startForm" action="/shoot.html" method="post">
+        <input type="text" id="gameNameBox" name="gameName" required>
+        
+        <input type="text" id="Player2Name" name="Player2Name" required>
+        
+        <input type="text" id="Player1Name" name="Player1Name" required>
+        
+        <input type="submit" id="submit" value="Submit">
+    </form>
+
+    <script>
+
+        let gameName;
+        let playerOneName;
+        let playerTwoName;
+        let hasGameStarted = false;
+        var currentPlayer;
+
+        document.getElementById("startForm").addEventListener("submit", function(event) {
+            event.preventDefault(); // Prevents the form from submitting
+            
+            gameName = document.getElementById("gameNameBox").value;
+            playerTwoName = document.getElementById("Player1Name").value;
+            playerOneName = document.getElementById("Player2Name").value;
+            
+            console.log("[CLIENT] Game Name: " + gameName);
+            console.log("[CLIENT] Player 1 Name: " + playerOneName);
+            console.log("[CLIENT] Player 2 Name: " + playerTwoName);
+
+            document.getElementById("gameName").textContent = gameName;
+            document.getElementById("player1").textContent = playerOneName;
+            document.getElementById("player2").textContent = playerTwoName;
+            
+            document.getElementById("gameNameBox").classList.add("hidden");
+            document.getElementById("Player1Name").classList.add("hidden");
+            document.getElementById("Player2Name").classList.add("hidden");
+            document.getElementById("submit").classList.add("hidden");
+
+            sendPlayerNames(gameName, playerOneName, playerTwoName);
+
+            hasGameStarted = true;
+            attachActionListeners();
+            
+        });
+
+        function sendPlayerNames(gameName, playerOneName, playerTwoName) {
+            var formData = new FormData();
+            formData.append('gameName', gameName);
+            formData.append('playerOne', playerOneName);
+            formData.append('playerTwo', playerTwoName);
+        
+            $.ajax({
+                url: '/sendPlayerNames',
+                type: 'POST',
+                dataType: 'text',
+                processData: false,
+                contentType: false,
+                data: formData,
+                success: function(response) {
+                    console.log('Player names sent successfully, the current player is:', response);
+                    currentPlayer = parseInt(response);
+                    console.log(response);
+                    displayTurns(currentPlayer);
+
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error sending player names:', error);
+                }
+            });
+        }
+
+
+        // Function to fetch the currentTurn value from the server
+        function getCurrentTurn() {
+            $.ajax({
+                url: '/getCurrentTurn', // Endpoint to fetch currentTurn from server
+                type: 'POST',
+                dataType: 'text',
+                success: function(response) {
+                    // Split the response string by commas to separate the values
+                    console.log(response)
+                    
+                    var values = response.split(',');
+        
+                    // Parse each value and store them in variables
+                    var currentTurn = parseInt(values[0]);
+                    var whoHasDotted = parseInt(values[1]);
+                    var whoHasSolid = parseInt(values[2]);
+                    var winCondition = parseInt(values[3]);
+        
+                    console.log('Current Turn:', currentTurn);
+                    console.log('Who has Dotted:', whoHasDotted);
+                    console.log('Who has Solid:', whoHasSolid);
+                    console.log('Who won the game:', winCondition);
+        
+                    // Use the variables in your client-side logic
+                    // Example: Update UI based on the retrieved values
+                    displayTurns(currentTurn, whoHasDotted, whoHasSolid, winCondition);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching currentTurn:', error);
+                }
+            });
+        }
+        
+        function displayTurns(currentPlayer, whoHasDotted, whoHasSolid, winCondition) {
+            var player1Text = document.getElementById("player1").innerText;
+            var player2Text = document.getElementById("player2").innerText;
+        
+            if (currentPlayer == 1) {
+                document.getElementById("player1").style.color = "red";
+                document.getElementById("player2").style.color = "black";
+            } else if (currentPlayer == 2) {
+                document.getElementById("player2").style.color = "red";
+                document.getElementById("player1").style.color = "black";
+            }
+        
+            // Append "High" to the player's text based on whoHasDotted and whoHasSolid
+            if (whoHasDotted == 1 && !player1Text.includes("High")) {
+                document.getElementById("player1").innerText += " High";
+            } else if (whoHasDotted == 2 && !player2Text.includes("High")) {
+                document.getElementById("player2").innerText += " High";
+            }
+        
+            if (whoHasSolid == 1 && !player1Text.includes("Low")) {
+                document.getElementById("player1").innerText += " Low";
+            } else if (whoHasSolid == 2 && !player2Text.includes("Low")) {
+                document.getElementById("player2").innerText += " Low";
+            }
+
+            if(winCondition == 1){
+                var gameNameElement = document.getElementById("gameName");
+                gameNameElement.innerText = playerOneName + " Wins the Game";
+            }else if (winCondition == 2){
+                var gameNameElement = document.getElementById("gameName");
+                gameNameElement.innerText = playerTwoName + " Wins the Game"; 
+            }
+        }
+        
+        $("#svgContainer").load('http://localhost:54785', function(){});
+
+        function attachActionListeners(){
+
+            var isDrawing = false;
+            var line = null;
+            var table = $('#svg-background svg').get(0);
+            var ball = $("circle[fill='WHITE']");
+
+            var startX, startY, endX, endY = 0;
+
+            /*When the ball is clicked*/
+            ball.click(function(e) {
+                e.stopPropagation();
+                if (!isDrawing) {
+                    isDrawing = true;
+                    var pt = table.createSVGPoint();
+
+                    pt.x = e.clientX;
+                    pt.y = e.clientY;
+
+                    var svgP = pt.matrixTransform(table.getScreenCTM().inverse());
+                    var ballPosition = ball[0].getBoundingClientRect();
+                    var svgPosition = table.getBoundingClientRect();
+                    line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+
+                    line.setAttribute('x1', ballPosition.left + ballPosition.width / 2 - svgPosition.left);
+                    line.setAttribute('y1', ballPosition.top + ballPosition.height / 2 - svgPosition.top);
+                    line.setAttribute('x2', svgP.x);
+                    line.setAttribute('y2', svgP.y);
+
+                    startX = ballPosition.left + ballPosition.width / 2 - svgPosition.left; /*store the start X*/
+                    startY = ballPosition.top + ballPosition.height / 2 - svgPosition.top /*store the start Y*/
+                    
+                    line.setAttribute('stroke', '#805943');
+                    line.setAttribute('stroke-width', 10);
+                    table.append(line);
+                }
+            });
+
+            //when the mouse is moved around the screen
+            $(document).mousemove(function(e) {
+                if (isDrawing && line) {
+                    var pt = table.createSVGPoint();
+                    pt.x = e.clientX;
+                    pt.y = e.clientY;
+                    var svgP = pt.matrixTransform(table.getScreenCTM().inverse());
+                    line.setAttribute('x2', svgP.x);
+                    line.setAttribute('y2', svgP.y);
+                    endX = svgP.x;
+                    endY = svgP.y;
+                }
+            });
+
+            //when mouse is clicked after dragging the shot
+            $(document).click(function(e) {
+                if (isDrawing) {
+                    
+                    isDrawing = false;
+                    table.removeChild(line);
+                    line = null;
+
+                    send(startX, startY, endX, endY); //Send the data back
+                }
+            });
+        }
+
+        function send(startX, startY, endX, endY) {
+            var formData = new FormData();
+            formData.append('startX', startX);
+            formData.append('startY', startY);
+            formData.append('endX', endX);
+            formData.append('endY', endY);
+        
+            $.ajax({
+                url: '/shoot.html',
+                type: 'POST',
+                dataType: 'text',
+                processData: false,
+                contentType: false,
+                data: formData,
+                success: function(csvData) {
+                    var svg_list = csvData.split(",")
+                    animateSVG(svg_list); // Handle SVG animation
+                },
+                error: function(xhr, status, error) {
+                    console.error('[CLIENT] Error sending data:', error);
+                }
+            });
+        }
+        
+        function animateSVG(svgList) {
+            var svgContainer = document.getElementById('svgContainer');
+            var currentSVGIndex = 0;
+        
+            function animate() {
+                if (currentSVGIndex >= svgList.length) {
+                    console.log("[CLIENT] Animation over");
+                    attachActionListeners();
+                    getCurrentTurn();
+                    return;
+                }
+        
+                var parser = new DOMParser();
+                var svgDoc = parser.parseFromString(svgList[currentSVGIndex], 'image/svg+xml');
+                var newSVGElement = svgDoc.documentElement;
+        
+                // Replace the content of the existing SVG element
+                svgContainer.innerHTML = '';
+                svgContainer.appendChild(newSVGElement);
+        
+                currentSVGIndex++;
+                setTimeout(animate, 5); // animates with 5 milliseconds interval
+            }
+            animate(); // start animation
+        }
+
+    </script>
+</body>
+</html>
