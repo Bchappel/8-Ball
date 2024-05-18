@@ -15,6 +15,7 @@ phylib_object * phylib_new_still_ball(unsigned char number, phylib_coord * pos){
     new_ball->obj.still_ball.pos = *pos; /*transfers the information in the function parameters into the structure*/
 
     return new_ball; /*returns a pointer to the phylib_object*/
+
 }
 
 phylib_object * phylib_new_rolling_ball(unsigned char number, phylib_coord * pos, phylib_coord * vel, phylib_coord * acc){
@@ -179,8 +180,6 @@ double phylib_dot_product(phylib_coord a, phylib_coord b){
 
 double phylib_distance(phylib_object * obj1, phylib_object * obj2){
 
-
-
     if(obj1->type != PHYLIB_ROLLING_BALL){
         return -1.0; /*if obj1 is not a rolling ball, then return -1.0*/
     }
@@ -341,6 +340,7 @@ unsigned char phylib_rolling(phylib_table * t){
             count++; /*increments the count as long as the object is not NULL*/
         }
     }
+
     return count;
 }
 
@@ -386,6 +386,7 @@ phylib_table * phylib_segment(phylib_table * table){
         }
         time += PHYLIB_SIM_RATE; /*increment time*/
     }
+
     return copy; /*return the table*/
 }
 
